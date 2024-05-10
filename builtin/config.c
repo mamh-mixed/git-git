@@ -761,7 +761,7 @@ static void location_options_init(struct config_location_options *opts,
 	}
 
 	if (opts->use_global_config) {
-		opts->source.file = xstrdup_or_null(git_global_config());
+		opts->source.file = git_global_config();
 		if (!opts->source.file)
 			/*
 			 * It is unknown if HOME/.gitconfig exists, so
