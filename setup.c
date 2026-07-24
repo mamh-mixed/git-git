@@ -2666,29 +2666,34 @@ static int create_default_files(struct repository *repo,
 static void create_object_database(struct repository *repo)
 {
 	char *object_directory, *alternate_object_directories;
-	struct strbuf path = STRBUF_INIT;
-	size_t baselen;
 
 	get_object_directories(&object_directory, &alternate_object_directories);
+
+	/*
+	 * Create the "objects" directory in the common directory. This is done
+	 * so that the repository can be discovered regardless of the backend
+	 * used.
+	 *
+	 * Note that we only do this in case the object directory wasn't
+	 * overwritten via an environment variable. If it _is_ being overridden
+	 * then we skip this step, as the repository won't be discoverable
+	 * anyway without the environment variable.
+	 */
+	if (!object_directory) {
+		struct strbuf objects_dir = STRBUF_INIT;
+		repo_common_path_append(repo, &objects_dir, "objects");
+		safe_create_dir(repo, objects_dir.buf, 1);
+		strbuf_release(&objects_dir);
+	}
+
 	repo->objects = odb_new(repo, object_directory,
 				alternate_object_directories);
 
-	strbuf_addstr(&path, repo_get_object_directory(repo));
-	baselen = path.len;
-
-	safe_create_dir(repo, path.buf, 1);
-
-	strbuf_setlen(&path, baselen);
-	strbuf_addstr(&path, "/pack");
-	safe_create_dir(repo, path.buf, 1);
-
-	strbuf_setlen(&path, baselen);
-	strbuf_addstr(&path, "/info");
-	safe_create_dir(repo, path.buf, 1);
+	if (odb_source_create_on_disk(repo->objects->sources) < 0)
+		die("failed creating object database");
 
 	free(alternate_object_directories);
 	free(object_directory);
-	strbuf_release(&path);
 }
 
 static void separate_git_dir(const char *git_dir, const char *git_link)
